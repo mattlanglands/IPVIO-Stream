@@ -339,14 +339,30 @@ fun Guide(
                                 t += 1800
                             }
                             val nx = (nowSec - winStart) / 60f * dpm
-                            if (nx > 0f && nx < viewMin * dpm) Box(Modifier.offset(x = (nx - 3f).dp).size(6.dp).clip(RoundedCornerShape(50)).background(Accent2).align(Alignment.BottomStart))
+                            // Time tag at the top of the now line (covers the half-hour mark it sits on)
+                            if (nx > 0f && nx < viewMin * dpm) Box(
+                                Modifier.offset(x = (nx - 24f).dp).width(48.dp).clip(RoundedCornerShape(50)).background(Accent2).padding(vertical = 2.dp).align(Alignment.CenterStart),
+                                contentAlignment = Alignment.Center
+                            ) { Text(raw = true, text = hhmm(nowSec), color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold, style = TNUM) }
                         }
                     }
                     if (shown.isEmpty()) Text("Keine Sender", color = Muted, fontSize = 15.sp, modifier = Modifier.padding(16.dp))
+                    // The grid with lines across all rows: faint half-hour lines behind the shows, one solid "now" line on top
+                    // (before, every row drew its own piece of the now line, so the gaps between rows made it look dashed)
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
+                    Box(Modifier.matchParentSize().padding(start = 208.dp).clipToBounds().drawBehind {
+                        val ws = winStart
+                        var t = ws - Math.floorMod(ws, 1800L)
+                        while (t < ws + viewMin * 60L + 1800) {
+                            val x = ((t - ws) / 60f * dpm).dp.toPx()
+                            if (x >= 0f) drawLine(Color(0x14FFFFFF), androidx.compose.ui.geometry.Offset(x, 0f), androidx.compose.ui.geometry.Offset(x, size.height), 1.dp.toPx())
+                            t += 1800
+                        }
+                    })
                     LazyColumn(
                         state = ls,
                         // Held Up/Down: at most ~9 steps per second (as in the Live TV list), and rows wait with loading
-                        modifier = Modifier.weight(1f).fadeEdges(ls).onPreviewKeyEvent { e ->
+                        modifier = Modifier.fillMaxSize().fadeEdges(ls).onPreviewKeyEvent { e ->
                             if (e.type == KeyEventType.KeyDown && (e.key == Key.DirectionDown || e.key == Key.DirectionUp) && e.nativeKeyEvent.repeatCount > 0) {
                                 val now = android.os.SystemClock.uptimeMillis()
                                 LiveHold.lastRepeat = now
@@ -368,6 +384,11 @@ fun Guide(
                                 onPick = { val p = onPickIn; if (p != null) p(ch, shown) else onPick(ch) }
                             )
                         }
+                    }
+                    Box(Modifier.matchParentSize().padding(start = 208.dp).clipToBounds().drawBehind {
+                        val x = ((nowSec - winStart) / 60f * dpm).dp.toPx()
+                        if (x >= 0f && x <= size.width) drawRect(Accent2, androidx.compose.ui.geometry.Offset(x - 1.dp.toPx(), 0f), androidx.compose.ui.geometry.Size(2.dp.toPx(), size.height))
+                    })
                     }
                 }
             }
@@ -675,8 +696,6 @@ private fun GuideRow(
                     }
                 }
             }
-            // "Now" line: moves with the row content, the clipping hides it outside the window
-            Box(Modifier.offset(x = ((nowSec - origin) / 60f * dpm).dp).width(2.dp).fillMaxHeight().background(Accent2.copy(alpha = 0.8f)))
             }
         }
     }
