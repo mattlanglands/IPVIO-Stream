@@ -95,9 +95,11 @@ internal fun HubScores(feed: SportFeed.State, hub: HubCtx, sport: String?, liveS
     val scope = rememberCoroutineScope()
 
     Column(Modifier.fillMaxSize()) {
-        DaySwitch(day, -7..14) { day = it; HubMemory.day = it }
-        Spacer(Modifier.height(dpx(6)))
-        SportFilter(sport, counts) { onSport(it) }
+        // One row: sport filter on the left (scrolls), days on the right (user's wish: days top right)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) { SportFilter(sport, counts) { onSport(it) } }
+            DaySwitch(day, -7..14, Modifier.padding(end = DS.PageX)) { day = it; HubMemory.day = it }
+        }
         Row(Modifier.fillMaxSize().padding(start = DS.PageX, end = DS.PageX, top = dpx(8))) {
             // Left: filters and competitions
             LazyColumn(
@@ -158,8 +160,8 @@ internal fun HubScores(feed: SportFeed.State, hub: HubCtx, sport: String?, liveS
 
 /** Day switch: ‹ Yesterday Today Tomorrow ›, plus the chosen day when it is further away. */
 @Composable
-internal fun DaySwitch(day: Int, range: IntRange, onDay: (Int) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = DS.PageX), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(dpx(8))) {
+internal fun DaySwitch(day: Int, range: IntRange, modifier: Modifier = Modifier, onDay: (Int) -> Unit) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(dpx(8))) {
         FilterPill("", false, Modifier.trackFocus(), aicon = AIcon.Left) { onDay((day - 1).coerceIn(range)) }
         if (day < -1) FilterPill(dayLabel(System.currentTimeMillis() / 1000 + day * 86_400L), true, Modifier.trackFocus(), raw = true) { }
         FilterPill("Gestern", day == -1, Modifier.trackFocus()) { onDay(-1) }
