@@ -16,4 +16,17 @@ Untertitel konnte nicht geladen werden¦Ondertitel kon niet worden geladen
 Untertitel geladen¦Ondertitel geladen
 Kostenlos unter opensubtitles.com: Konto anlegen, dann unter „API consumers“ eine App anlegen und den API-Schlüssel eintragen. Ohne Anmeldung sind nur wenige Downloads pro Tag möglich.¦Gratis op opensubtitles.com: maak een account, maak daarna onder "API consumers" een app aan en vul de API-sleutel in. Zonder inloggen zijn maar enkele downloads per dag mogelijk.
 Kostenlos unter subdl.com > Konto > API. Im Player unter „Audio & Untertitel“ > „Untertitel online suchen“ werden beide Dienste gefragt.¦Gratis op subdl.com > Account > API. In de speler zoekt "Audio & ondertitels" > "Ondertitels online zoeken" bij beide diensten.
+Nur live¦Alleen live
+Nur meine Sender¦Alleen mijn zenders
+Springe zu¦Ga naar
+Fenster¦Vensters
+Vollbild¦Volledig scherm
+Ausgewähltes Fenster füllt den Bildschirm¦Het gekozen venster vult het scherm
+Ton aus¦Geluid uit
+Ton an¦Geluid aan
+Ton aller Fenster¦Geluid van alle vensters
+Alle Fenster leeren¦Alle vensters leegmaken
+{#0} von {#1} Streams¦{#0} van {#1} streams
+Ton¦Geluid
+Auf deinem Sender¦Op je zender
 """

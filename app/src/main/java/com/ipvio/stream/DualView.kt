@@ -47,7 +47,7 @@ import androidx.media3.ui.PlayerView
  * Note: many providers allow only one connection per login – then the second stream drops and the app reports it.
  */
 @Composable
-internal fun SecondStream(item: Item, split: Boolean, audioOn: Boolean, modifier: Modifier, small: Boolean = false) {
+internal fun SecondStream(item: Item, split: Boolean, audioOn: Boolean, modifier: Modifier, small: Boolean = false, chrome: Boolean = true) {
     val ctx = LocalContext.current
     var failed by remember { mutableStateOf(false) }
     // Hint for the user: why it failed and what to try (shown below the message)
@@ -104,7 +104,8 @@ internal fun SecondStream(item: Item, split: Boolean, audioOn: Boolean, modifier
     }
     LaunchedEffect(audioOn) { runCatching { p?.volume = if (audioOn) 1f else 0f } }
     val shape = RoundedCornerShape(if (split) 0.dp else 10.dp)
-    Box(modifier.clip(shape).background(Color.Black).border(if (split) 0.dp else 2.dp, if (audioOn) Accent2 else Color(0x66FFFFFF), shape)) {
+    // chrome = false: the caller draws frame and labels itself (multi view tiles)
+    Box(modifier.clip(shape).background(Color.Black).then(if (chrome) Modifier.border(if (split) 0.dp else 2.dp, if (audioOn) Accent2 else Color(0x66FFFFFF), shape) else Modifier)) {
         AndroidView(
             factory = { c ->
                 PlayerView(c).apply {
@@ -115,7 +116,7 @@ internal fun SecondStream(item: Item, split: Boolean, audioOn: Boolean, modifier
             },
             modifier = Modifier.fillMaxSize()
         )
-        Row(
+        if (chrome) Row(
             Modifier.align(Alignment.TopStart).padding(8.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x99000000)).padding(horizontal = 8.dp, vertical = 3.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

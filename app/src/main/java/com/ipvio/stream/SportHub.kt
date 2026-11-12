@@ -91,7 +91,7 @@ class HubCtx(val nav: HubNav, val live: List<Item>, private val onPlay: (Item, L
 }
 
 /** Tab and filters survive leaving the hub (e.g. after Watch Live and back from the player). */
-private object HubMemory {
+internal object HubMemory {
     /** Pages that were open when a live stream started (restored when the hub comes back). */
     var keep: List<HubPage> = emptyList()
     var tab = 0
@@ -99,7 +99,7 @@ private object HubMemory {
     var day = 0
 }
 
-private val HUB_TABS = listOf("Übersicht", "Live", "Spielplan", "Ligen", "Teams", "Favoriten", "Sender")
+private val HUB_TABS = listOf("Übersicht", "Live", "Ergebnisse", "Ligen", "Teams", "Favoriten", "Sender")
 
 /**
  * Sports Hub: Overview, Live, Schedule, Leagues, Teams, Favorites and the channel area (previous sports page).
@@ -166,23 +166,23 @@ fun SportHub(live: List<Item>, onPlay: (Item, List<Item>) -> Unit) {
             contentPadding = PaddingValues(horizontal = DS.PageX, vertical = dpx(10)),
             horizontalArrangement = Arrangement.spacedBy(dpx(10))
         ) {
-            item(key = "scoreov") { FilterPill("Score-Overlay", SportAlerts.miniOn, aicon = AIcon.Live) { scoreDlg = true } }
+            // Tab 1 (Live) is no longer a pill: "Ergebnisse" (2) covers it, goTab(1, …) opens it with "Live only"
+            val selTab = if (tab == 1) 2 else tab
             itemsIndexed(HUB_TABS) { i, t ->
-                // The chosen tab is where the focus lands when coming from the sidebar (the channel tab has its own target)
-                val base = if (i == tab && tab != 6) Modifier.focusRequester(ContentFocus.req) else Modifier.trackFocus()
-                // Live tab: Down goes to the sport filter first (not to the competition row below it)
-                FilterPill(t, tab == i, if (tab == 1) base.focusProperties { down = sportReq } else base) {
-                    tab = i; HubMemory.tab = i
+                if (i != 1) {
+                    // The chosen tab is where the focus lands when coming from the sidebar (the channel tab has its own target)
+                    val base = if (i == selTab && tab != 6) Modifier.focusRequester(ContentFocus.req) else Modifier.trackFocus()
+                    FilterPill(t, selTab == i, base) { tab = i; HubMemory.tab = i }
                 }
             }
+            item(key = "scoreov") { FilterPill("Score-Overlay", SportAlerts.miniOn, aicon = AIcon.Live) { scoreDlg = true } }
         }
         if (!General.sportLive && tab != 6) {
             HubEmpty(AIcon.Live, "Live-Ergebnisse sind aus", "Ergebnisse, Tabellen und Spielpläne kommen von ESPN (inoffizielle Quelle). Schalte sie ein, um den Sports Hub zu nutzen.",
                 "Einschalten") { General.setSportLive(ctx, true) }
         } else when (tab) {
             0 -> HubOverview(feed, hub) { retry++ }
-            1 -> HubLive(feed, hub, sport, sportReq) { sport = it; HubMemory.sport = it }
-            2 -> HubSchedule(hub, sport) { sport = it; HubMemory.sport = it }
+            1, 2 -> key(tab) { HubScores(feed, hub, sport, liveStart = tab == 1) { sport = it; HubMemory.sport = it } }
             3 -> HubLeagues(hub)
             4 -> HubTeams(hub)
             5 -> HubFavorites(feed, hub)
@@ -203,9 +203,9 @@ fun SportHub(live: List<Item>, onPlay: (Item, List<Item>) -> Unit) {
     }
 }
 
-private fun current(list: List<SportData.Game>): List<SportData.Game> = list.map { SportFeed.latest[it.key] ?: it }
+internal fun current(list: List<SportData.Game>): List<SportData.Game> = list.map { SportFeed.latest[it.key] ?: it }
 
-private fun popularity(g: SportData.Game): Int = SportData.POPULAR.indexOf(g.league).let { if (it < 0) 99 else it }
+internal fun popularity(g: SportData.Game): Int = SportData.POPULAR.indexOf(g.league).let { if (it < 0) 99 else it }
 
 /**
  * Featured game: prefer one the user can actually watch (own channel found): live favorite, live top competition,
@@ -269,7 +269,7 @@ private fun HubOverview(feed: SportFeed.State, hub: HubCtx, onRetry: () -> Unit)
     val newsLeagues = m.newsLeagues
     LazyColumn(contentPadding = PaddingValues(horizontal = DS.PageX, vertical = dpx(8)), verticalArrangement = Arrangement.spacedBy(dpx(18))) {
         when {
-            top != null -> item(key = "featured") { FeaturedPanel(top, hub) }
+            top != null -> item(key = "featured") { FeaturedHero(top, hub) }
             feed.loading -> item(key = "load") { HubLoading("Lade Spiele …") }
             feed.failed -> item(key = "err") {
                 HubEmpty(AIcon.Warning, "Daten konnten nicht geladen werden", "ESPN antwortet gerade nicht. Prüfe die Internetverbindung und versuche es erneut.", "Erneut versuchen") { onRetry() }
