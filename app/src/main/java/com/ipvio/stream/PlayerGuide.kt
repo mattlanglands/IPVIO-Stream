@@ -39,6 +39,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -82,7 +86,13 @@ object GuidePrefs {
     var zoom by mutableIntStateOf(2)
     var rowSize by mutableIntStateOf(0)
     var hidePast by mutableStateOf(false)
+    /** Small running picture and header, so more channel rows fit (off = the original layout). */
+    var smallPreview by mutableStateOf(false)
     private var inited = false
+
+    /** Size of the running picture in the guide; PlayerScreen shrinks the video to it, the guide leaves a hole for it. */
+    val previewW: Dp get() = if (smallPreview) 304.dp else 400.dp
+    val previewH: Dp get() = if (smallPreview) 171.dp else 225.dp
 
     fun init(c: Context) {
         if (inited) return
@@ -91,13 +101,15 @@ object GuidePrefs {
         // One-time: new default view (Large / Compact) also for everyone who had already saved
         if (p.getInt("ver", 1) < 2) p.edit().putInt("zoom", 2).putInt("row", 0).putInt("ver", 2).apply()
         zoom = p.getInt("zoom", 2).coerceIn(0, 2)
-        rowSize = p.getInt("row", 0).coerceIn(0, 2)
+        rowSize = p.getInt("row", 0).coerceIn(0, 3)
         hidePast = p.getBoolean("past", false)
+        smallPreview = p.getBoolean("preview_small", false)
     }
 
     fun save(c: Context) {
         Profiles.sp(c, "ipvio_guide").edit()
-            .putInt("zoom", zoom).putInt("row", rowSize).putBoolean("past", hidePast).apply()
+            .putInt("zoom", zoom).putInt("row", rowSize).putBoolean("past", hidePast)
+            .putBoolean("preview_small", smallPreview).apply()
     }
 }
 
@@ -124,8 +136,9 @@ fun Guide(
     // dp per minute: "Small" shows a good 3 hours at once, "Medium" a good 2 hours
     val zooms = listOf(3.5f, 5f, 8f)
     val zoomNames = listOf("Klein", "Mittel", "Groß")
-    val rowNames = listOf("Kompakt", "Normal", "Groß")
-    val rowHeights = listOf(54, 66, 82)
+    // "Klein" (added last, so saved choices keep their meaning): one line per show, more channels on screen
+    val rowNames = listOf("Kompakt", "Normal", "Groß", "Klein")
+    val rowHeights = listOf(54, 66, 82, 44)
     val dpm = zooms[GuidePrefs.zoom]
     val rowH = rowHeights[GuidePrefs.rowSize]
     val maxSpan = 2880L * 60
@@ -211,8 +224,9 @@ fun Guide(
     Column(
         Modifier.fillMaxSize()
             .drawBehind {
-                val l = size.width - 424.dp.toPx(); val t = 20.dp.toPx()
-                val hole = androidx.compose.ui.geometry.RoundRect(l, t, l + 400.dp.toPx(), t + 225.dp.toPx(), androidx.compose.ui.geometry.CornerRadius(DS.RadiusM.toPx()))
+                val pw = GuidePrefs.previewW.toPx()
+                val l = size.width - pw - 24.dp.toPx(); val t = 20.dp.toPx()
+                val hole = androidx.compose.ui.geometry.RoundRect(l, t, l + pw, t + GuidePrefs.previewH.toPx(), androidx.compose.ui.geometry.CornerRadius(DS.RadiusM.toPx()))
                 val path = androidx.compose.ui.graphics.Path().apply {
                     fillType = androidx.compose.ui.graphics.PathFillType.EvenOdd
                     addRect(androidx.compose.ui.geometry.Rect(0f, 0f, size.width, size.height))
@@ -222,14 +236,16 @@ fun Guide(
             }
             .padding(start = 24.dp, top = 14.dp, bottom = 10.dp, end = 24.dp)
     ) {
-        Row(Modifier.fillMaxWidth().height(238.dp)) {
+        val small = GuidePrefs.smallPreview
+        // Header height follows the running picture next to it (238 dp with the large one)
+        Row(Modifier.fillMaxWidth().height(GuidePrefs.previewH + 13.dp)) {
             Column(Modifier.weight(1f).fillMaxHeight().padding(end = 20.dp)) {
                 // Header: title, date and time, Now and View
-                Row(Modifier.fillMaxWidth().height(58.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(Modifier.fillMaxWidth().height(if (small) 46.dp else 58.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     MenuIcon(3, Accent1, Modifier.size(30.dp))
                     Column(Modifier.weight(1f)) {
                         Text("TV-Guide", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
-                        Text("Live TV · Jetzt und in den nächsten Stunden", color = Muted, fontSize = 13.sp, maxLines = 1)
+                        if (!small) Text("Live TV · Jetzt und in den nächsten Stunden", color = Muted, fontSize = 13.sp, maxLines = 1)
                     }
                     Row(
                         Modifier.clip(RoundedCornerShape(50)).background(Color(0x1FFFFFFF)).border(1.dp, Color(0x1FFFFFFF), RoundedCornerShape(50))
@@ -262,11 +278,15 @@ fun Guide(
                                     }
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                                         Text("Zeilenhöhe", color = Color.White, fontSize = 15.sp)
-                                        SmallPill(rowNames[GuidePrefs.rowSize]) { GuidePrefs.rowSize = (GuidePrefs.rowSize + 1) % 3; GuidePrefs.save(ctx) }
+                                        SmallPill(rowNames[GuidePrefs.rowSize]) { GuidePrefs.rowSize = (GuidePrefs.rowSize + 1) % rowNames.size; GuidePrefs.save(ctx) }
                                     }
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                                         Text("Vergangene Sendungen", color = Color.White, fontSize = 15.sp)
                                         SmallPill(if (GuidePrefs.hidePast) "Ausblenden" else "Abdunkeln") { GuidePrefs.hidePast = !GuidePrefs.hidePast; GuidePrefs.save(ctx) }
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                                        Text("Vorschau", color = Color.White, fontSize = 15.sp)
+                                        SmallPill(if (GuidePrefs.smallPreview) "Klein" else "Groß") { GuidePrefs.smallPreview = !GuidePrefs.smallPreview; GuidePrefs.save(ctx) }
                                     }
                                     Text("Zurück: Sendung, Sender, Kategorie, dann schließen", color = Muted, fontSize = 13.sp)
                                     Text("Jetzt ${hhmm(nowSec)} · Zeitzone ${epgZone().id} (änderbar unter Einstellungen > Sprache & Region)", color = Muted, fontSize = 13.sp)
@@ -275,14 +295,16 @@ fun Guide(
                         }
                     }
                 }
-                GuideDetailPanel(infoE, infoItem, nowSec, Modifier.weight(1f).fillMaxWidth().padding(top = 4.dp))
+                GuideDetailPanel(infoE, infoItem, nowSec, small, Modifier.weight(1f).fillMaxWidth().padding(top = 4.dp))
             }
-            Spacer(Modifier.width(400.dp))
+            Spacer(Modifier.width(GuidePrefs.previewW))
         }
         Row(Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp)) {
             // Categories
+            val catLs = rememberLazyListState()
             LazyColumn(
-                Modifier.width(206.dp).fillMaxHeight().clip(RoundedCornerShape(DS.RadiusL)).background(Color(0x0FFFFFFF)),
+                Modifier.width(206.dp).fillMaxHeight().clip(RoundedCornerShape(DS.RadiusL)).background(Color(0x0FFFFFFF)).fadeEdges(catLs),
+                state = catLs,
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(8.dp),
                 verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
@@ -324,7 +346,7 @@ fun Guide(
                     LazyColumn(
                         state = ls,
                         // Held Up/Down: at most ~9 steps per second (as in the Live TV list), and rows wait with loading
-                        modifier = Modifier.weight(1f).onPreviewKeyEvent { e ->
+                        modifier = Modifier.weight(1f).fadeEdges(ls).onPreviewKeyEvent { e ->
                             if (e.type == KeyEventType.KeyDown && (e.key == Key.DirectionDown || e.key == Key.DirectionUp) && e.nativeKeyEvent.repeatCount > 0) {
                                 val now = android.os.SystemClock.uptimeMillis()
                                 LiveHold.lastRepeat = now
@@ -432,13 +454,13 @@ private fun GuideHint(key: String?, text: String, vararg keys: AIcon) {
  * what OK does (watch / from the archive / remind) and the next shows of the channel.
  */
 @Composable
-private fun GuideDetailPanel(e: EpgEntry?, ch: Item?, nowSec: Long, modifier: Modifier) {
+private fun GuideDetailPanel(e: EpgEntry?, ch: Item?, nowSec: Long, small: Boolean, modifier: Modifier) {
     val shape = RoundedCornerShape(DS.RadiusL)
     Row(
-        modifier.clip(shape).background(Color(0x0FFFFFFF)).border(1.dp, Color(0x14FFFFFF), shape).padding(horizontal = 18.dp, vertical = 12.dp),
+        modifier.clip(shape).background(Color(0x0FFFFFFF)).border(1.dp, Color(0x14FFFFFF), shape).padding(horizontal = 18.dp, vertical = if (small) 8.dp else 12.dp),
         horizontalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(if (small) 3.dp else 5.dp)) {
             if (e == null || ch == null) {
                 Text("TV-Guide", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
                 Text("Wähle eine Sendung mit den Pfeiltasten, OK schaltet auf den Sender.", color = PT.T2, fontSize = 14.sp)
@@ -466,7 +488,7 @@ private fun GuideDetailPanel(e: EpgEntry?, ch: Item?, nowSec: Long, modifier: Mo
                 Text("·  ${(e.end - e.start) / 60} Min", color = PT.T2, fontSize = 13.sp, maxLines = 1)
                 if (Reminders.isSet(ch.id, e.start)) AppIcon(AIcon.Bell, Accent2, size = 14.dp)
             }
-            Text(raw = true, text = e.title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(raw = true, text = e.title, color = Color.White, fontSize = if (small) 20.sp else 22.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (isNow) {
                 val frac = ((nowSec - e.start).toFloat() / (e.end - e.start).coerceAtLeast(1)).coerceIn(0f, 1f)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -477,7 +499,7 @@ private fun GuideDetailPanel(e: EpgEntry?, ch: Item?, nowSec: Long, modifier: Mo
                 }
             }
             // The whole width belongs to the description (the "Next shows" column was dropped at the user's request)
-            if (e.desc.isNotBlank()) Text(raw = true, text = e.desc, color = DS.TextSoft, fontSize = 14.sp, lineHeight = 19.sp, maxLines = 4, overflow = TextOverflow.Ellipsis)
+            if (e.desc.isNotBlank()) Text(raw = true, text = e.desc, color = DS.TextSoft, fontSize = 14.sp, lineHeight = 19.sp, maxLines = if (small) 2 else 4, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.weight(1f))
         }
     }
@@ -502,6 +524,8 @@ private fun GuideRow(
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
     val cu = remember(ch.id, Catchup.version) { Catchup.of(ch) }
+    // Row height "Klein": one line per show (the time is in the axis and the detail panel), smaller logo
+    val oneLine = rowH < 50.dp
     // null = still loading (shows "loading …" instead of wrongly "No program available")
     // Cached program right away; otherwise wait briefly and not while Up/Down is held (rows that only fly past load nothing)
     // While Up/Down is held even cached rows stay empty: a row with its program builds a dozen focusable fields
@@ -544,12 +568,12 @@ private fun GuideRow(
                 .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Box(Modifier.size(38.dp).clip(RoundedCornerShape(DS.RadiusXs)).background(DS.Overlay2), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(if (oneLine) 30.dp else 38.dp).clip(RoundedCornerShape(DS.RadiusXs)).background(DS.Overlay2), contentAlignment = Alignment.Center) {
                 if (ch.logo != null) AsyncImage(ch.logo, null, Modifier.fillMaxSize().padding(3.dp), contentScale = ContentScale.Fit)
             }
             Text(
                 ch.title, color = Color.White, fontSize = 14.sp,
-                fontWeight = if (current || f) FontWeight.ExtraBold else FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis
+                fontWeight = if (current || f) FontWeight.ExtraBold else FontWeight.Medium, maxLines = if (oneLine) 1 else 2, overflow = TextOverflow.Ellipsis
             )
         }
         Box(Modifier.weight(1f).fillMaxHeight().clipToBounds()) {
@@ -638,11 +662,11 @@ private fun GuideRow(
                         if (inArchive && dw >= 30f) AppIcon(AIcon.Catchup, if (bf) Color.White else Accent2, Modifier.align(Alignment.TopEnd), 13.dp)
                         // Design: title on top, time below
                         if (dw >= 44f) Column {
-                            if (dw >= 72f) Text(
+                            if (dw >= 72f || oneLine) Text(
                                 e.title, color = if (past && !inArchive && !bf) Color(0xFF9AA0B2) else Color.White,
                                 fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, raw = true
                             )
-                            Text(
+                            if (!oneLine) Text(
                                 raw = true, text = hhmm(e.start) + " – " + hhmm(e.end), color = if (bf) Color(0xE6FFFFFF) else Muted,
                                 fontSize = 13.sp, style = TNUM, maxLines = 1
                             )
@@ -657,3 +681,19 @@ private fun GuideRow(
         }
     }
 }
+
+/**
+ * Fades the top/bottom edge of a list while there is more to scroll in that direction, so a row cut by the edge
+ * reads as "more here" instead of a clipped item.
+ */
+private fun Modifier.fadeEdges(state: androidx.compose.foundation.lazy.LazyListState, edge: Dp = 18.dp): Modifier =
+    graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            val h = edge.toPx()
+            if (state.canScrollBackward) drawRect(Brush.verticalGradient(listOf(Color.Transparent, Color.Black), startY = 0f, endY = h), size = androidx.compose.ui.geometry.Size(size.width, h), blendMode = BlendMode.DstIn)
+            if (state.canScrollForward) drawRect(
+                Brush.verticalGradient(listOf(Color.Black, Color.Transparent), startY = size.height - h, endY = size.height),
+                topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - h), size = androidx.compose.ui.geometry.Size(size.width, h), blendMode = BlendMode.DstIn
+            )
+        }
