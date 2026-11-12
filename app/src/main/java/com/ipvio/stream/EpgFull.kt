@@ -5,10 +5,13 @@ import kotlinx.coroutines.withContext
 
 object EpgFull {
     private val cache = LruCache<String, Pair<Long, List<EpgEntry>>>(300)
+
+    /** How far back the program of a channel without archive goes (before: 1 h). */
+    const val PAST_SEC = 6 * 3600L
     fun trim() = cache.clear()
 
     /**
-     * Program of a channel: from 1 h back, for channels with archive (catchup) as far back as the archive reaches.
+     * Program of a channel: from [PAST_SEC] back, for channels with archive (catchup) as far back as the archive reaches.
      * First cache and loaded XMLTV (without network), then Xtream.
      */
     suspend fun get(item: Item): List<EpgEntry> {
@@ -27,7 +30,8 @@ object EpgFull {
 
     private suspend fun getFresh(item: Item, nowMs: Long, nowSec: Long): List<EpgEntry> {
         val days = Catchup.of(item)?.days ?: 0
-        val from = if (days > 0) nowSec - days * 86400L else nowSec - 3600
+        // Without archive the past PAST_SEC stay too, so the guide shows what ran before (dimmed), not an empty row
+        val from = if (days > 0) nowSec - days * 86400L else nowSec - PAST_SEC
         val local = Xmltv.forChannel(item.tvgId).filter { it.end > from }
         // With archive, XMLTV is only enough if it also contains past shows
         val localOk = local.size >= 3 && local.any { it.end > nowSec } && (days == 0 || local.first().start <= nowSec - 6 * 3600)
