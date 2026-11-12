@@ -1,6 +1,9 @@
 # Changelog
 
 ## Unreleased
+- TV guide: the time axis stays still when moving Up/Down to another channel; it only scrolls when the selected show is out of view (before, every show was centred, so the whole grid jumped back and forth)
+- TV guide: channels without archive keep the shows of the last 6 hours (before: 1 hour), so scrolling back shows what ran earlier instead of empty rows
+- TV guide: two new view options for more channels on screen. Preview "Small" shrinks the running picture and the header; row height "Small" shows one line per show. Lists fade at an edge with more to scroll instead of cutting a row in half
 
 ## 1.4.1
 - Fix: 1.4 did not open after the update on user devices. R8 over the whole app (T-024) is switched off again (`enable = false` in app/build.gradle.kts, the rollback from ADR 0005); versionCode 6. Cause not confirmed by a crash log (unverified). Install 1.4.1 over 1.4; data is kept (same signature)
