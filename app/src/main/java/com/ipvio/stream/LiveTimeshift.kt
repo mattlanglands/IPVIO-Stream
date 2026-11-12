@@ -31,6 +31,9 @@ object LiveSettings {
     /** Minutes of overrun after the end of the show according to the TV guide. */
     var recPad by mutableIntStateOf(3)
         private set
+    /** Automatic genre groups in Live TV (Sports, Movies, Documentaries, Kids, News, Music). Off for curated playlists. */
+    var genres by mutableStateOf(true)
+        private set
     private var inited = false
 
     fun init(c: Context) {
@@ -41,12 +44,14 @@ object LiveSettings {
         bufferMb = p.getInt("mb", 512).takeIf { it in BUFFER_MB } ?: 512
         recDir = p.getInt("dir", 0).coerceAtLeast(0)
         recPad = p.getInt("pad", 3).coerceIn(0, 30)
+        genres = p.getBoolean("genres", true)
     }
 
     private fun save(c: Context) = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-        .putBoolean("ts", timeshift).putInt("mb", bufferMb).putInt("dir", recDir).putInt("pad", recPad).apply()
+        .putBoolean("ts", timeshift).putInt("mb", bufferMb).putInt("dir", recDir).putInt("pad", recPad).putBoolean("genres", genres).apply()
 
     fun setTimeshift(c: Context, v: Boolean) { timeshift = v; save(c) }
+    fun setGenres(c: Context, v: Boolean) { genres = v; save(c) }
     fun setBufferMb(c: Context, v: Int) { bufferMb = v; save(c) }
     fun setRecDir(c: Context, v: Int) { recDir = v; save(c) }
     fun setRecPad(c: Context, v: Int) { recPad = v; save(c) }

@@ -108,7 +108,9 @@ fun LiveTab(liveAll: List<Item>, groupsAll: Map<String, List<Item>>, favsAll: Li
         }
     }
     // Genres (sports, movies, documentary, kids, news, music) – detected by category and channel name
-    val genres = remember(live) { LiveGenre.split(live) }
+    // Off in Settings > Live TV (curated playlists have their own groups)
+    LiveSettings.init(ctx)
+    val genres = remember(live, LiveSettings.genres) { if (LiveSettings.genres) LiveGenre.split(live) else LinkedHashMap() }
     val favs = remember(favsAll, srcK) { if (srcK < 0) favsAll else favsAll.filter { it.src == srcK } }
     CatFavs.init(ctx)
     ChannelLists.init(ctx)

@@ -29,4 +29,6 @@ Alle Fenster leeren¦Alle vensters leegmaken
 {#0} von {#1} Streams¦{#0} van {#1} streams
 Ton¦Geluid
 Auf deinem Sender¦Op je zender
+Automatische Genres¦Automatische genres
+Zeigt in Live TV zusätzliche Gruppen wie Sport, Filme, Dokumentationen und Kinder, erkannt am Sendernamen. Aus, wenn deine Playlist schon sortiert ist.¦Toont extra groepen in Live-tv zoals Sport, Films, Documentaires en Kinderen, herkend aan de zendernaam. Zet uit als je playlist al gesorteerd is.
 """

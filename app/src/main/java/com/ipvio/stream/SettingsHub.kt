@@ -1167,6 +1167,12 @@ private fun LivePage(ctx: Context) {
     Hint("Sender als Favorit: auf dem Sender OK gedrückt halten > „Zu Favoriten“. Kategorie als Favorit: auf der Kategorie OK gedrückt halten.")
     ChannelListsSection(ctx)
     CatchupSection()
+    LiveSettings.init(ctx)
+    ToggleRow(
+        "Automatische Genres",
+        "Zeigt in Live TV zusätzliche Gruppen wie Sport, Filme, Dokumentationen und Kinder, erkannt am Sendernamen. Aus, wenn deine Playlist schon sortiert ist.",
+        LiveSettings.genres
+    ) { LiveSettings.setGenres(ctx, it) }
     LiveBufferSection(ctx)
     ReminderSettingsSection(ctx)
 }
